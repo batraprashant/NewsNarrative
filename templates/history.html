@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}NewsNarrative – History{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-clock-history me-2"></i>Narrative History</h2>
+
+{% if not narratives %}
+<div class="text-center py-5">
+  <i class="bi bi-inbox display-1 text-muted"></i>
+  <h4 class="mt-3 text-muted">No narratives yet</h4>
+  <p class="text-muted">Click <strong>Fetch Now</strong> to get started.</p>
+</div>
+{% else %}
+<div class="row g-3">
+  {% for n in narratives %}
+  <div class="col-md-6 col-lg-4">
+    <a href="{{ url_for('view_narrative', date_str=n.fetch_date.isoformat()) }}" class="text-decoration-none">
+      <div class="card shadow-sm h-100 history-card">
+        <div class="card-body">
+          <h5 class="card-title mb-1">{{ n.fetch_date.strftime("%B %d, %Y") }}</h5>
+          <p class="text-muted small mb-2">{{ n.articles | length }} articles &middot; generated {{ n.created_at.strftime("%H:%M UTC") }}</p>
+          <p class="card-text text-muted small excerpt">{{ n.content | striptags | truncate(180) }}</p>
+        </div>
+        <div class="card-footer text-end bg-transparent">
+          <span class="text-primary small">Read narrative <i class="bi bi-arrow-right"></i></span>
+        </div>
+      </div>
+    </a>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

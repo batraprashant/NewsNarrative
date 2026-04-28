@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}NewsNarrative – {{ narrative.fetch_date if narrative else "No data yet" }}{% endblock %}
+
+{% block content %}
+
+{% if fetching %}
+<div class="alert alert-info d-flex align-items-center gap-2">
+  <div class="spinner-border spinner-border-sm" role="status"></div>
+  <span>Fetching latest news and building narrative — refresh in a moment&hellip;</span>
+</div>
+{% endif %}
+
+{% if not narrative %}
+<div class="text-center py-5">
+  <i class="bi bi-newspaper display-1 text-muted"></i>
+  <h3 class="mt-3 text-muted">No news fetched yet</h3>
+  <p class="text-muted">Click <strong>Fetch Now</strong> in the top-right to pull today's news.</p>
+</div>
+
+{% else %}
+
+<!-- Header row -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h1 class="h3 mb-0">
+      <i class="bi bi-calendar3 me-2 text-muted"></i>{{ narrative.fetch_date.strftime("%B %d, %Y") }}
+    </h1>
+    {% if narrative.fetch_date != today %}
+    <span class="badge bg-secondary mt-1">Archived</span>
+    {% else %}
+    <span class="badge bg-success mt-1">Today</span>
+    {% endif %}
+  </div>
+  <a href="{{ url_for('history') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-clock-history me-1"></i>View all dates
+  </a>
+</div>
+
+<div class="row g-4">
+
+  <!-- Left column: Narrative -->
+  <div class="col-lg-7">
+    <div class="card shadow-sm h-100">
+      <div class="card-header bg-dark text-white">
+        <i class="bi bi-pencil-square me-2"></i><strong>Narrative</strong>
+      </div>
+      <div class="card-body narrative-body">
+        {{ narrative.content | markdownify }}
+      </div>
+    </div>
+  </div>
+
+  <!-- Right column: Articles -->
+  <div class="col-lg-5">
+
+    <!-- Today's articles -->
+    <h5 class="fw-semibold mb-3"><i class="bi bi-sun me-2 text-warning"></i>Today's Top 10</h5>
+    {% for article in narrative.today_articles %}
+    <div class="card article-card mb-2 shadow-sm">
+      <div class="card-body py-2 px-3">
+        <div class="d-flex justify-content-between align-items-start gap-2">
+          <div>
+            {% if article.url %}
+            <a href="{{ article.url }}" target="_blank" rel="noopener" class="article-title">{{ article.title }}</a>
+            {% else %}
+            <span class="article-title">{{ article.title }}</span>
+            {% endif %}
+            {% if article.description %}
+            <p class="text-muted small mb-0 mt-1">{{ article.description | truncate(120) }}</p>
+            {% endif %}
+          </div>
+        </div>
+        <div class="mt-1">
+          <span class="badge bg-secondary">{{ article.source }}</span>
+          <span class="text-muted small ms-1">{{ article.published_at }}</span>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <p class="text-muted small">No articles for today.</p>
+    {% endfor %}
+
+    <!-- Past weeks (collapsible) -->
+    {% for label, articles in narrative.weekly_groups %}
+    <div class="mt-3">
+      <button class="btn btn-outline-secondary btn-sm w-100 text-start week-toggle"
+              type="button"
+              data-bs-toggle="collapse"
+              data-bs-target="#week-{{ loop.index }}">
+        <i class="bi bi-calendar-week me-2"></i>Week {{ loop.index }}: {{ label }}
+        <span class="badge bg-secondary float-end">{{ articles | length }}</span>
+      </button>
+      <div class="collapse mt-2" id="week-{{ loop.index }}">
+        {% for article in articles %}
+        <div class="card article-card mb-2 shadow-sm">
+          <div class="card-body py-2 px-3">
+            {% if article.url %}
+            <a href="{{ article.url }}" target="_blank" rel="noopener" class="article-title">{{ article.title }}</a>
+            {% else %}
+            <span class="article-title">{{ article.title }}</span>
+            {% endif %}
+            <div class="mt-1">
+              <span class="badge bg-secondary">{{ article.source }}</span>
+              <span class="text-muted small ms-1">{{ article.published_at }}</span>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+
+  </div><!-- /right col -->
+</div><!-- /row -->
+
+{% endif %}
+{% endblock %}

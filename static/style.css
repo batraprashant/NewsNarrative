@@ -1,0 +1,93 @@
+body {
+  background-color: #f8f9fa;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+/* Narrative body */
+.narrative-body {
+  font-size: 0.95rem;
+  line-height: 1.75;
+  color: #212529;
+}
+
+.narrative-body h2 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  color: #1a1a2e;
+  border-bottom: 2px solid #e9ecef;
+  padding-bottom: 0.25rem;
+}
+
+.narrative-body h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-top: 1rem;
+  color: #495057;
+}
+
+.narrative-body p {
+  margin-bottom: 0.75rem;
+}
+
+.narrative-body strong {
+  color: #343a40;
+}
+
+/* Article cards */
+.article-card {
+  border-left: 3px solid #0d6efd;
+  transition: box-shadow 0.15s;
+}
+
+.article-card:hover {
+  box-shadow: 0 0.25rem 0.75rem rgba(0,0,0,.1) !important;
+}
+
+.article-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #212529;
+  text-decoration: none;
+  line-height: 1.35;
+}
+
+.article-title:hover {
+  color: #0d6efd;
+  text-decoration: underline;
+}
+
+/* Week toggle button */
+.week-toggle {
+  border-color: #ced4da;
+  color: #495057;
+  font-size: 0.825rem;
+}
+
+.week-toggle:hover {
+  background-color: #e9ecef;
+}
+
+/* History cards */
+.history-card {
+  transition: transform 0.15s, box-shadow 0.15s;
+  color: #212529;
+  border-top: 3px solid #0d6efd;
+}
+
+.history-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 0.5rem 1rem rgba(0,0,0,.1) !important;
+}
+
+.excerpt {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+footer {
+  color: #adb5bd;
+}
