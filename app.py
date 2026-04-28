@@ -1,27 +1,27 @@
 """
-NewsNarrative - Fetch top 10 daily news and build a narrative using Claude.
+NewsNarrative - Fetch top 10 daily news and build a narrative using OpenAI.
 
 Requires:
   NEWS_API_KEY  - from https://newsapi.org (free tier)
-  ANTHROPIC_API_KEY - from https://console.anthropic.com
+  OPENAI_API_KEY - from https://platform.openai.com
 """
 
 import os
 import sys
 from datetime import datetime, timedelta
 
-import anthropic
 import requests
 from dotenv import load_dotenv
+from openai import OpenAI
 
 load_dotenv()
 
 NEWS_API_KEY = os.environ.get("NEWS_API_KEY")
-ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 
 
 def check_env():
-    missing = [k for k in ("NEWS_API_KEY", "ANTHROPIC_API_KEY") if not os.environ.get(k)]
+    missing = [k for k in ("NEWS_API_KEY", "OPENAI_API_KEY") if not os.environ.get(k)]
     if missing:
         print(f"ERROR: Missing environment variables: {', '.join(missing)}")
         print("Copy .env.example to .env and fill in your API keys.")
@@ -107,8 +107,8 @@ def format_article_list(articles):
 # ---------------------------------------------------------------------------
 
 def build_narrative(today_articles, past_weeks):
-    """Call Claude to generate a cohesive news narrative."""
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    """Call OpenAI to generate a cohesive news narrative."""
+    client = OpenAI(api_key=OPENAI_API_KEY)
 
     today_block = format_article_list(today_articles)
 
@@ -145,12 +145,12 @@ PAST 4 WEEKS – TOP 10 PER WEEK:
 {weekly_block}
 """
 
-    message = client.messages.create(
-        model="claude-opus-4-6",
+    response = client.chat.completions.create(
+        model="gpt-4o",
         max_tokens=2048,
         messages=[{"role": "user", "content": prompt}],
     )
-    return message.content[0].text
+    return response.choices[0].message.content
 
 
 # ---------------------------------------------------------------------------

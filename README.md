@@ -6,7 +6,7 @@ Build a narrative around the daily Top 10 news and recent events.
 
 1. Fetches today's top 10 headlines (via [NewsAPI](https://newsapi.org))
 2. Fetches the top 10 most popular articles for each of the past 4 weeks
-3. Sends everything to Claude (claude-opus-4-6) to generate a cohesive narrative with trend analysis
+3. Sends everything to OpenAI (gpt-4o) to generate a cohesive narrative with trend analysis
 
 ## Setup
 
@@ -25,7 +25,7 @@ cp .env.example .env
 
 You need:
 - **NewsAPI key** – free at https://newsapi.org/register (100 requests/day on free tier)
-- **Anthropic API key** – at https://console.anthropic.com
+- **OpenAI API key** – at https://platform.openai.com/api-keys
 
 ### 3. Run
 
