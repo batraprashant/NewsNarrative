@@ -6,8 +6,9 @@
 {% if fetching %}
 <div class="alert alert-info d-flex align-items-center gap-2">
   <div class="spinner-border spinner-border-sm" role="status"></div>
-  <span>Fetching latest news and building narrative — refresh in a moment&hellip;</span>
+  <span>Fetching latest news and building narrative — page will refresh automatically&hellip;</span>
 </div>
+<script>setTimeout(() => location.reload(), 5000);</script>
 {% endif %}
 
 {% if not narrative %}

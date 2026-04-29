@@ -101,7 +101,7 @@ PAST 4 WEEKS – TOP 10 PER WEEK:
 """
 
     response = _openai_client().chat.completions.create(
-        model="gpt-4o",
+        model="gpt-5.5",
         max_tokens=2048,
         messages=[{"role": "user", "content": prompt}],
     )
