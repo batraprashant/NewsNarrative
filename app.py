@@ -44,7 +44,12 @@ with app.app_context():
 
 @app.template_filter("markdownify")
 def markdownify(text):
-    return Markup(md.markdown(text or "", extensions=["nl2br"]))
+    text = (text or "").strip()
+    if text.startswith("```"):
+        text = text.split("\n", 1)[-1]
+        if text.endswith("```"):
+            text = text.rsplit("```", 1)[0]
+    return Markup(md.markdown(text.strip(), extensions=["nl2br"]))
 
 
 # ---------------------------------------------------------------------------
