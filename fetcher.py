@@ -1,10 +1,14 @@
 """News fetching and narrative generation logic."""
 
 import os
+import logging
+import time
 from datetime import datetime, timedelta
 
 import requests
 from openai import OpenAI
+
+LOGGER = logging.getLogger(__name__)
 
 
 def _news_api_key():
@@ -16,16 +20,31 @@ def _openai_client():
 
 
 def fetch_top_headlines_today():
+    start = time.perf_counter()
+    LOGGER.info("Fetch phase: requesting today's top headlines from NewsAPI.")
     resp = requests.get(
         "https://newsapi.org/v2/top-headlines",
         params={"country": "us", "pageSize": 10, "apiKey": _news_api_key()},
         timeout=15,
     )
     resp.raise_for_status()
-    return resp.json().get("articles", [])[:10]
+    articles = resp.json().get("articles", [])[:10]
+    elapsed = time.perf_counter() - start
+    LOGGER.info(
+        "Fetch phase complete: today's headlines retrieved (%d articles in %.2fs).",
+        len(articles),
+        elapsed,
+    )
+    return articles
 
 
 def fetch_top_articles_for_week(from_date, to_date):
+    start = time.perf_counter()
+    LOGGER.info(
+        "Fetch phase: requesting weekly articles from %s to %s.",
+        from_date.isoformat(),
+        to_date.isoformat(),
+    )
     resp = requests.get(
         "https://newsapi.org/v2/everything",
         params={
@@ -42,8 +61,22 @@ def fetch_top_articles_for_week(from_date, to_date):
     resp.raise_for_status()
     data = resp.json()
     if data.get("status") != "ok":
+        LOGGER.warning(
+            "Fetch phase warning: weekly article request returned non-ok status for %s to %s.",
+            from_date.isoformat(),
+            to_date.isoformat(),
+        )
         return []
-    return data.get("articles", [])[:10]
+    articles = data.get("articles", [])[:10]
+    elapsed = time.perf_counter() - start
+    LOGGER.info(
+        "Fetch phase complete: weekly articles retrieved (%s to %s, %d articles in %.2fs).",
+        from_date.isoformat(),
+        to_date.isoformat(),
+        len(articles),
+        elapsed,
+    )
+    return articles
 
 
 def _format_article_list(articles):
@@ -61,6 +94,12 @@ def _format_article_list(articles):
 
 def generate_narrative(today_articles, past_weeks):
     """Call OpenAI GPT-4o and return a Markdown-formatted narrative string."""
+    start = time.perf_counter()
+    LOGGER.info(
+        "Generation phase: creating narrative from %d today articles and %d week groups.",
+        len(today_articles),
+        len(past_weeks),
+    )
     today_block = _format_article_list(today_articles)
     weekly_blocks = []
     for i, (label, articles) in enumerate(past_weeks, 1):
@@ -111,7 +150,14 @@ PAST 4 WEEKS – TOP 10 PER WEEK:
         content = content.split("\n", 1)[-1]  # drop the opening fence line
         if content.endswith("```"):
             content = content.rsplit("```", 1)[0]
-    return content.strip()
+    narrative = content.strip()
+    elapsed = time.perf_counter() - start
+    LOGGER.info(
+        "Generation phase complete: narrative generated (%d chars in %.2fs).",
+        len(narrative),
+        elapsed,
+    )
+    return narrative
 
 
 def fetch_all():
@@ -121,7 +167,9 @@ def fetch_all():
         (narrative_text, today_articles, past_weeks)
         where past_weeks = [(label, articles), ...]
     """
+    start = time.perf_counter()
     today = datetime.now().date()
+    LOGGER.info("Fetch lifecycle started for %s.", today.isoformat())
 
     today_articles = fetch_top_headlines_today()
 
@@ -134,4 +182,13 @@ def fetch_all():
         past_weeks.append((label, articles))
 
     narrative_text = generate_narrative(today_articles, past_weeks)
+    elapsed = time.perf_counter() - start
+    weekly_count = sum(len(articles) for _, articles in past_weeks)
+    LOGGER.info(
+        "Fetch lifecycle complete for %s (today=%d, past_weeks=%d, duration=%.2fs).",
+        today.isoformat(),
+        len(today_articles),
+        weekly_count,
+        elapsed,
+    )
     return narrative_text, today_articles, past_weeks

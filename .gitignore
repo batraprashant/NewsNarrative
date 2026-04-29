@@ -4,3 +4,5 @@ __pycache__/
 narrative_*.txt
 *.db
 instance/
+.venv/
+.pytest_cache/

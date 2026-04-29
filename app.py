@@ -9,6 +9,8 @@ Run:
 
 import os
 import threading
+import logging
+import time
 from datetime import datetime
 
 import markdown as md
@@ -21,9 +23,40 @@ load_dotenv()
 
 from models import Article, Narrative, db
 
+# Basic startup/runtime logging for diagnostics.
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+LOGGER = logging.getLogger(__name__)
+
+
+def validate_startup_config():
+    """Validate required configuration and log actionable diagnostics."""
+    required_keys = ["NEWS_API_KEY", "OPENAI_API_KEY"]
+    missing_keys = [key for key in required_keys if not os.environ.get(key)]
+    if missing_keys:
+        missing_list = ", ".join(missing_keys)
+        raise RuntimeError(
+            f"Missing required environment variables: {missing_list}. "
+            "Create a .env file from .env.example and set these values."
+        )
+
+    if os.environ.get("SECRET_KEY", "change-me-in-production") == "change-me-in-production":
+        LOGGER.warning(
+            "SECRET_KEY is using the default value. Set SECRET_KEY in .env "
+            "before deploying outside local development."
+        )
+
+    database_url = os.environ.get("DATABASE_URL", "sqlite:///newsnarrative.db")
+    LOGGER.info("Startup configuration validated (DATABASE_URL=%s)", database_url)
+
+
 # ---------------------------------------------------------------------------
 # App factory
 # ---------------------------------------------------------------------------
+
+validate_startup_config()
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "change-me-in-production")
@@ -61,6 +94,7 @@ _is_fetching = False
 
 
 def _save_fetch_result(narrative_text, today_articles, past_weeks, fetch_date):
+    start = time.perf_counter()
     with app.app_context():
         existing = Narrative.query.filter_by(fetch_date=fetch_date).first()
         if existing:
@@ -96,14 +130,27 @@ def _save_fetch_result(narrative_text, today_articles, past_weeks, fetch_date):
                 ))
 
         db.session.commit()
+    weekly_count = sum(len(articles) for _, articles in past_weeks)
+    elapsed = time.perf_counter() - start
+    LOGGER.info(
+        "Persist phase complete for %s (today=%d, past_weeks=%d, duration=%.2fs).",
+        fetch_date.isoformat(),
+        len(today_articles),
+        weekly_count,
+        elapsed,
+    )
 
 
 def fetch_and_save(force=False):
     global _is_fetching
+    run_started = time.perf_counter()
+    LOGGER.info("Fetch run requested (force=%s).", force)
     with _fetch_lock:
         if _is_fetching:
+            LOGGER.info("Fetch run skipped because another fetch is already in progress.")
             return
         _is_fetching = True
+    LOGGER.info("Fetch run started (force=%s).", force)
 
     try:
         from fetcher import fetch_all
@@ -111,18 +158,21 @@ def fetch_and_save(force=False):
         today = datetime.now().date()
         with app.app_context():
             if not force and Narrative.query.filter_by(fetch_date=today).first():
-                print(f"Already fetched for {today}, skipping.")
+                LOGGER.info("Already fetched for %s; skipping scheduled fetch.", today)
                 return
 
-        print(f"Fetching news for {today} ...")
+        LOGGER.info("Fetching news for %s...", today)
         narrative_text, today_articles, past_weeks = fetch_all()
         _save_fetch_result(narrative_text, today_articles, past_weeks, today)
-        print("Fetch complete.")
+        elapsed = time.perf_counter() - run_started
+        LOGGER.info("Fetch run complete for %s (duration=%.2fs).", today, elapsed)
     except Exception as exc:
-        print(f"Fetch error: {exc}")
+        elapsed = time.perf_counter() - run_started
+        LOGGER.exception("Fetch run failed after %.2fs: %s", elapsed, exc)
     finally:
         with _fetch_lock:
             _is_fetching = False
+        LOGGER.info("Fetch run released in-progress lock.")
 
 
 # ---------------------------------------------------------------------------
@@ -131,7 +181,8 @@ def fetch_and_save(force=False):
 
 scheduler = BackgroundScheduler(daemon=True)
 scheduler.add_job(fetch_and_save, "cron", hour=8, minute=0)
-scheduler.start()
+if os.environ.get("TESTING", "").lower() not in {"1", "true", "yes"}:
+    scheduler.start()
 
 
 # ---------------------------------------------------------------------------
@@ -168,10 +219,12 @@ def view_narrative(date_str):
 @app.route("/fetch", methods=["POST"])
 def trigger_fetch():
     if _is_fetching:
+        LOGGER.info("Manual fetch ignored: fetch already in progress.")
         flash("A fetch is already in progress. Please wait.", "warning")
     else:
         thread = threading.Thread(target=lambda: fetch_and_save(force=True), daemon=True)
         thread.start()
+        LOGGER.info("Manual fetch accepted and background thread started.")
         flash("Fetching latest news — this takes about 30–60 seconds. Refresh shortly.", "info")
     return redirect(url_for("index"))
 

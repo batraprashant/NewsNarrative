@@ -5,3 +5,4 @@ flask>=3.0.0
 flask-sqlalchemy>=3.1.0
 apscheduler>=3.10.0
 markdown>=3.5.0
+pytest>=8.0.0

@@ -39,6 +39,12 @@ python3 app.py
 
 Open http://localhost:5000 in your browser, then click **Fetch Now** to pull the first batch of news.
 
+## Run smoke tests
+
+```bash
+pytest
+```
+
 ## Project structure
 
 ```
