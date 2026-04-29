@@ -1,6 +1,6 @@
 # NewsNarrative
 
-A web app that fetches the daily top 10 news and the top 10 stories from each of the past 4 weeks, stores them in a database, and presents a GPT-4o-generated narrative through a clean web front-end.
+A web app that fetches the daily top 10 news and the top 10 stories from each of the past 4 weeks, stores them in a database, and presents a GPT-5.5-generated narrative through a clean web front-end.
 
 ## What it does
 
