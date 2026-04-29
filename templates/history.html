@@ -2,32 +2,29 @@
 {% block title %}NewsNarrative – History{% endblock %}
 
 {% block content %}
-<h2 class="mb-4"><i class="bi bi-clock-history me-2"></i>Narrative History</h2>
+
+<h1 class="page-title">History</h1>
+<p class="page-subtitle">{{ narratives | length }} narrative{{ 's' if narratives | length != 1 }} saved</p>
 
 {% if not narratives %}
-<div class="text-center py-5">
-  <i class="bi bi-inbox display-1 text-muted"></i>
-  <h4 class="mt-3 text-muted">No narratives yet</h4>
-  <p class="text-muted">Click <strong>Fetch Now</strong> to get started.</p>
+<div class="empty-state">
+  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#8e8b82" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+  </svg>
+  <h2 class="empty-state-title">Nothing here yet</h2>
+  <p class="empty-state-sub">Click <strong>Fetch Now</strong> to generate your first narrative.</p>
 </div>
 {% else %}
-<div class="row g-3">
+<div class="history-grid">
   {% for n in narratives %}
-  <div class="col-md-6 col-lg-4">
-    <a href="{{ url_for('view_narrative', date_str=n.fetch_date.isoformat()) }}" class="text-decoration-none">
-      <div class="card shadow-sm h-100 history-card">
-        <div class="card-body">
-          <h5 class="card-title mb-1">{{ n.fetch_date.strftime("%B %d, %Y") }}</h5>
-          <p class="text-muted small mb-2">{{ n.articles | length }} articles &middot; generated {{ n.created_at.strftime("%H:%M UTC") }}</p>
-          <p class="card-text text-muted small excerpt">{{ n.content | striptags | truncate(180) }}</p>
-        </div>
-        <div class="card-footer text-end bg-transparent">
-          <span class="text-primary small">Read narrative <i class="bi bi-arrow-right"></i></span>
-        </div>
-      </div>
-    </a>
-  </div>
+  <a href="{{ url_for('view_narrative', date_str=n.fetch_date.isoformat()) }}" class="history-card">
+    <h3 class="history-card-date">{{ n.fetch_date.strftime("%B %d, %Y") }}</h3>
+    <p class="history-card-meta">{{ n.articles | length }} articles &middot; {{ n.created_at.strftime("%H:%M UTC") }}</p>
+    <p class="history-card-excerpt">{{ n.content | striptags | truncate(200) }}</p>
+    <span class="history-card-cta">Read narrative &rarr;</span>
+  </a>
   {% endfor %}
 </div>
 {% endif %}
+
 {% endblock %}
