@@ -7,7 +7,7 @@ A web app that fetches the daily top 10 news and the top 10 stories from each of
 1. Fetches today's top 10 headlines (via [NewsAPI](https://newsapi.org))
 2. Fetches the top 10 most popular articles for each of the past 4 weeks
 3. Stores everything in a local SQLite database
-4. Generates a Markdown narrative with OpenAI GPT-4o
+4. Generates a Markdown narrative with OpenAI GPT-5.5
 5. Presents the narrative + article cards in a responsive web UI
 6. Auto-fetches daily at 08:00 via a background scheduler
 
