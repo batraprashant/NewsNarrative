@@ -105,7 +105,13 @@ PAST 4 WEEKS – TOP 10 PER WEEK:
         max_tokens=2048,
         messages=[{"role": "user", "content": prompt}],
     )
-    return response.choices[0].message.content
+    content = response.choices[0].message.content.strip()
+    # Strip wrapping ```markdown ... ``` code fences some models add
+    if content.startswith("```"):
+        content = content.split("\n", 1)[-1]  # drop the opening fence line
+        if content.endswith("```"):
+            content = content.rsplit("```", 1)[0]
+    return content.strip()
 
 
 def fetch_all():
