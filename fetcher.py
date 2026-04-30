@@ -138,26 +138,51 @@ TODAY'S TOP 10 NEWS:
 PAST 4 WEEKS – TOP 10 PER WEEK:
 {weekly_block}
 """
+    attempt_limits = [4096, 8192]
+    last_finish_reason = None
 
-    response = _openai_client().chat.completions.create(
-        model="gpt-5.5",
-        max_completion_tokens=2048,
-        messages=[{"role": "user", "content": prompt}],
+    for attempt_num, token_limit in enumerate(attempt_limits, start=1):
+        LOGGER.info(
+            "Generation attempt %d/%d with max_completion_tokens=%d.",
+            attempt_num,
+            len(attempt_limits),
+            token_limit,
+        )
+        response = _openai_client().chat.completions.create(
+            model="gpt-5.5",
+            max_completion_tokens=token_limit,
+            messages=[{"role": "user", "content": prompt}],
+        )
+
+        choice = response.choices[0]
+        content = (choice.message.content or "").strip()
+        last_finish_reason = choice.finish_reason
+
+        # Strip wrapping ```markdown ... ``` code fences some models add
+        if content.startswith("```"):
+            content = content.split("\n", 1)[-1]  # drop the opening fence line
+            if content.endswith("```"):
+                content = content.rsplit("```", 1)[0]
+        narrative = content.strip()
+        if narrative:
+            elapsed = time.perf_counter() - start
+            LOGGER.info(
+                "Generation phase complete: narrative generated (%d chars in %.2fs).",
+                len(narrative),
+                elapsed,
+            )
+            return narrative
+
+        LOGGER.warning(
+            "Generation attempt %d returned empty content (finish_reason=%s).",
+            attempt_num,
+            choice.finish_reason,
+        )
+
+    raise RuntimeError(
+        "Narrative generation returned empty content "
+        f"(finish_reason={last_finish_reason})."
     )
-    content = response.choices[0].message.content.strip()
-    # Strip wrapping ```markdown ... ``` code fences some models add
-    if content.startswith("```"):
-        content = content.split("\n", 1)[-1]  # drop the opening fence line
-        if content.endswith("```"):
-            content = content.rsplit("```", 1)[0]
-    narrative = content.strip()
-    elapsed = time.perf_counter() - start
-    LOGGER.info(
-        "Generation phase complete: narrative generated (%d chars in %.2fs).",
-        len(narrative),
-        elapsed,
-    )
-    return narrative
 
 
 def fetch_all():

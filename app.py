@@ -91,6 +91,7 @@ def markdownify(text):
 
 _fetch_lock = threading.Lock()
 _is_fetching = False
+_last_fetch_error = None
 
 
 def _save_fetch_result(narrative_text, today_articles, past_weeks, fetch_date):
@@ -142,7 +143,7 @@ def _save_fetch_result(narrative_text, today_articles, past_weeks, fetch_date):
 
 
 def fetch_and_save(force=False):
-    global _is_fetching
+    global _is_fetching, _last_fetch_error
     run_started = time.perf_counter()
     LOGGER.info("Fetch run requested (force=%s).", force)
     with _fetch_lock:
@@ -150,6 +151,7 @@ def fetch_and_save(force=False):
             LOGGER.info("Fetch run skipped because another fetch is already in progress.")
             return
         _is_fetching = True
+        _last_fetch_error = None
     LOGGER.info("Fetch run started (force=%s).", force)
 
     try:
@@ -164,10 +166,15 @@ def fetch_and_save(force=False):
         LOGGER.info("Fetching news for %s...", today)
         narrative_text, today_articles, past_weeks = fetch_all()
         _save_fetch_result(narrative_text, today_articles, past_weeks, today)
+        _last_fetch_error = None
         elapsed = time.perf_counter() - run_started
         LOGGER.info("Fetch run complete for %s (duration=%.2fs).", today, elapsed)
     except Exception as exc:
         elapsed = time.perf_counter() - run_started
+        _last_fetch_error = (
+            "Could not generate today's narrative. Please try again in a minute. "
+            "If this keeps happening, check server logs for the exact API error."
+        )
         LOGGER.exception("Fetch run failed after %.2fs: %s", elapsed, exc)
     finally:
         with _fetch_lock:
@@ -196,7 +203,13 @@ def index():
         Narrative.query.filter_by(fetch_date=today).first()
         or Narrative.query.order_by(Narrative.fetch_date.desc()).first()
     )
-    return render_template("index.html", narrative=narrative, today=today, fetching=_is_fetching)
+    return render_template(
+        "index.html",
+        narrative=narrative,
+        today=today,
+        fetching=_is_fetching,
+        fetch_error=_last_fetch_error,
+    )
 
 
 @app.route("/history")

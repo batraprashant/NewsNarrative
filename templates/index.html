@@ -11,6 +11,12 @@
 <script>setTimeout(() => location.reload(), 5000);</script>
 {% endif %}
 
+{% if fetch_error %}
+<div class="nn-alert warning">
+  {{ fetch_error }}
+</div>
+{% endif %}
+
 {% if not narrative %}
 <div class="empty-state">
   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#8e8b82" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
