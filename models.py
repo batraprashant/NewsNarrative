@@ -46,3 +46,15 @@ class Article(db.Model):
     published_at = db.Column(db.String(20))
     article_type = db.Column(db.String(20), nullable=False)  # 'today' | 'week_1'..'week_4'
     week_label = db.Column(db.String(50))
+
+
+class FetchRun(db.Model):
+    __tablename__ = "fetch_runs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    trigger_type = db.Column(db.String(20), nullable=False)  # 'manual' | 'scheduled'
+    status = db.Column(db.String(20), nullable=False)  # 'running' | 'success' | 'failed'
+    started_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    completed_at = db.Column(db.DateTime)
+    duration_seconds = db.Column(db.Float)
+    error_message = db.Column(db.Text)

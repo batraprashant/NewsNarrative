@@ -45,6 +45,18 @@ Open http://localhost:5000 in your browser, then click **Fetch Now** to pull the
 pytest
 ```
 
+Run only unit/integration tests (default for CI):
+
+```bash
+pytest -m "not e2e"
+```
+
+Run live end-to-end test (requires real API keys in env):
+
+```bash
+RUN_E2E=1 pytest -m e2e
+```
+
 ## Project structure
 
 ```

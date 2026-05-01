@@ -17,6 +17,18 @@
 </div>
 {% endif %}
 
+{% if latest_fetch_run and not fetching %}
+<div class="nn-alert {{ 'warning' if latest_fetch_run.status == 'failed' else '' }}">
+  Last fetch ({{ latest_fetch_run.trigger_type }}) status: <strong>{{ latest_fetch_run.status }}</strong>
+  {% if latest_fetch_run.completed_at %}
+    at {{ latest_fetch_run.completed_at.strftime("%Y-%m-%d %H:%M:%S UTC") }}
+  {% endif %}
+  {% if latest_fetch_run.duration_seconds is not none %}
+    ({{ "%.1f"|format(latest_fetch_run.duration_seconds) }}s)
+  {% endif %}
+</div>
+{% endif %}
+
 {% if not narrative %}
 <div class="empty-state">
   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#8e8b82" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">

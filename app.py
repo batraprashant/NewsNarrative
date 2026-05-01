@@ -22,7 +22,7 @@ from markupsafe import Markup
 
 load_dotenv()
 
-from models import Article, Narrative, db
+from models import Article, FetchRun, Narrative, db
 
 # Basic startup/runtime logging for diagnostics.
 logging.basicConfig(
@@ -147,9 +147,36 @@ def _save_fetch_result(narrative_text, today_articles, past_weeks, fetch_date):
     )
 
 
+def _start_fetch_run(force):
+    with app.app_context():
+        run = FetchRun(
+            trigger_type="manual" if force else "scheduled",
+            status="running",
+            started_at=datetime.utcnow(),
+        )
+        db.session.add(run)
+        db.session.commit()
+        return run.id
+
+
+def _finish_fetch_run(run_id, status, duration_seconds, error_message=None):
+    if run_id is None:
+        return
+    with app.app_context():
+        run = db.session.get(FetchRun, run_id)
+        if not run:
+            return
+        run.status = status
+        run.completed_at = datetime.utcnow()
+        run.duration_seconds = duration_seconds
+        run.error_message = (error_message or "")[:2000] or None
+        db.session.commit()
+
+
 def fetch_and_save(force=False):
     global _is_fetching, _last_fetch_error
     run_started = time.perf_counter()
+    fetch_run_id = None
     LOGGER.info("Fetch run requested (force=%s).", force)
     with _fetch_lock:
         if _is_fetching:
@@ -160,6 +187,7 @@ def fetch_and_save(force=False):
     LOGGER.info("Fetch run started (force=%s).", force)
 
     try:
+        fetch_run_id = _start_fetch_run(force)
         from fetcher import fetch_all
 
         today = datetime.now().date()
@@ -173,9 +201,11 @@ def fetch_and_save(force=False):
         _save_fetch_result(narrative_text, today_articles, past_weeks, today)
         _last_fetch_error = None
         elapsed = time.perf_counter() - run_started
+        _finish_fetch_run(fetch_run_id, "success", elapsed)
         LOGGER.info("Fetch run complete for %s (duration=%.2fs).", today, elapsed)
     except Exception as exc:
         elapsed = time.perf_counter() - run_started
+        _finish_fetch_run(fetch_run_id, "failed", elapsed, str(exc))
         _last_fetch_error = (
             "Could not generate today's narrative. Please try again in a minute. "
             "If this keeps happening, check server logs for the exact API error."
@@ -223,12 +253,14 @@ def index():
     if not narrative:
         recent = Narrative.query.order_by(Narrative.fetch_date.desc()).all()
         narrative = next((item for item in recent if (item.content or "").strip()), None)
+    latest_fetch_run = FetchRun.query.order_by(FetchRun.started_at.desc()).first()
     return render_template(
         "index.html",
         narrative=narrative,
         today=today,
         fetching=_is_fetching,
         fetch_error=_last_fetch_error,
+        latest_fetch_run=latest_fetch_run,
     )
 
 
@@ -255,6 +287,7 @@ def view_narrative(date_str):
         today=today,
         fetching=_is_fetching,
         fetch_error=_last_fetch_error,
+        latest_fetch_run=FetchRun.query.order_by(FetchRun.started_at.desc()).first(),
     )
 
 
