@@ -5,6 +5,8 @@
 ## May 01, 2026
 
 ### Features
+- Add GitHub Repo, Documentation, and Release Notes links to footer (`2b73a07`)
+- Add release notes generation and GitHub Actions automation (`2a4678d`)
 - Add persistent fetch run tracking and broaden test coverage (`e93d0c4`)
 
 ### Bug Fixes
