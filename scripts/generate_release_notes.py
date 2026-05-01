@@ -54,13 +54,17 @@ def get_commits() -> list[dict]:
         if len(parts) != 3:
             continue
         sha, date_str, subject = parts
+        subject = subject.strip()
+        # Skip automated bot commits
+        if "[skip ci]" in subject.lower():
+            continue
         dt = datetime.fromisoformat(date_str.strip()).astimezone(timezone.utc)
         commits.append(
             {
                 "sha": sha[:7],
                 "date": dt.date(),
-                "subject": subject.strip().rstrip("."),
-                "category": categorise(subject.strip()),
+                "subject": subject.rstrip("."),
+                "category": categorise(subject),
             }
         )
     return commits
