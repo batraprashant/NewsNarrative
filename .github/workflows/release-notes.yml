@@ -1,0 +1,44 @@
+name: Update Release Notes
+
+on:
+  push:
+    branches: [main]
+
+# Prevent the bot's own commit from retriggering this workflow
+# by checking the actor and using [skip ci] in the commit message.
+
+jobs:
+  release-notes:
+    # Don't run if this push was made by the bot to avoid infinite loops
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Generate RELEASE_NOTES.md
+        run: python scripts/generate_release_notes.py
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add RELEASE_NOTES.md
+          if git diff --staged --quiet; then
+            echo "No changes to release notes."
+          else
+            git commit -m "docs: update release notes [skip ci]"
+            git push
+          fi
