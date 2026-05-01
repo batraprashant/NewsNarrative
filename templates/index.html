@@ -71,12 +71,12 @@
       {% if narrative.content and narrative.content.strip() %}
         {{ narrative.content | markdownify }}
       {% else %}
-        <p style="color:var(--on-dark-soft);font-style:italic;margin:0;">
+        <p style="color:var(--on-dark-soft);font-style:italic;margin:0 0 16px;">
           Narrative generation did not complete for this date.
-          {% if narrative.fetch_date == today %}
-            Click <strong style="color:var(--on-dark);">Fetch Now</strong> to retry.
-          {% endif %}
         </p>
+        <form action="{{ url_for('trigger_regenerate', date_str=narrative.fetch_date.isoformat()) }}" method="post">
+          <button type="submit" class="btn-primary">Regenerate Narrative</button>
+        </form>
       {% endif %}
     </div>
   </div>

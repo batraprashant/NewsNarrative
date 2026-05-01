@@ -92,6 +92,7 @@ def markdownify(text):
 
 _fetch_lock = threading.Lock()
 _is_fetching = False
+_is_regenerating = False
 _last_fetch_error = None
 
 
@@ -242,6 +243,54 @@ def fetch_and_save(force=False):
         LOGGER.info("Fetch lock released.")
 
 
+def regenerate_narrative_for_date(fetch_date):
+    """Re-run only the OpenAI narrative step for a date that already has articles.
+    Safe to call when articles exist but content is empty (e.g. after a daemon-thread kill)."""
+    global _is_regenerating, _last_fetch_error
+    with _fetch_lock:
+        if _is_regenerating or _is_fetching:
+            LOGGER.info("Regeneration skipped — fetch/regeneration already in progress.")
+            return
+        _is_regenerating = True
+
+    LOGGER.info("Narrative regeneration started for %s.", fetch_date)
+    try:
+        from fetcher import generate_narrative
+
+        with app.app_context():
+            narrative = Narrative.query.filter_by(fetch_date=fetch_date).first()
+            if not narrative:
+                LOGGER.warning("Regeneration: no narrative record found for %s.", fetch_date)
+                return
+            if (narrative.content or "").strip():
+                LOGGER.info("Regeneration: %s already has content, skipping.", fetch_date)
+                return
+
+            def art_to_dict(a):
+                return {"title": a.title, "source": {"name": a.source},
+                        "description": a.description, "publishedAt": a.published_at}
+
+            today_dicts = [art_to_dict(a) for a in narrative.today_articles]
+            weeks_dicts = [(lbl, [art_to_dict(a) for a in arts])
+                           for lbl, arts in narrative.weekly_groups]
+
+        if not today_dicts:
+            LOGGER.warning("Regeneration: no articles found for %s, cannot generate.", fetch_date)
+            return
+
+        LOGGER.info("Regeneration: calling OpenAI for %s (%d articles).", fetch_date, len(today_dicts))
+        narrative_text = generate_narrative(today_dicts, weeks_dicts)
+        _save_narrative_content(narrative.id, narrative_text)
+        _last_fetch_error = None
+        LOGGER.info("Regeneration complete for %s (%d chars).", fetch_date, len(narrative_text))
+    except Exception as exc:
+        _last_fetch_error = f"Narrative regeneration failed: {exc}"
+        LOGGER.exception("Regeneration failed for %s: %s", fetch_date, exc)
+    finally:
+        with _fetch_lock:
+            _is_regenerating = False
+
+
 # ---------------------------------------------------------------------------
 # Scheduler: auto-fetch daily at 06:00 America/Los_Angeles
 # ---------------------------------------------------------------------------
@@ -263,6 +312,19 @@ if os.environ.get("TESTING", "").lower() not in {"1", "true", "yes"}:
     if job:
         LOGGER.info("Auto-fetch scheduled for %s", job.next_run_time)
 
+    # Startup recovery: if today has articles but no narrative (e.g. daemon thread
+    # was killed mid-run last time), kick off a background regeneration immediately.
+    def _startup_recovery():
+        from datetime import date as _date
+        today = _date.today()
+        with app.app_context():
+            n = Narrative.query.filter_by(fetch_date=today).first()
+            if n and not (n.content or "").strip() and n.articles:
+                LOGGER.info("Startup recovery: today has articles but no narrative — regenerating.")
+                regenerate_narrative_for_date(today)
+
+    threading.Thread(target=_startup_recovery, daemon=True).start()
+
 
 # ---------------------------------------------------------------------------
 # Routes
@@ -271,19 +333,17 @@ if os.environ.get("TESTING", "").lower() not in {"1", "true", "yes"}:
 @app.route("/")
 def index():
     today = datetime.now().date()
+    # Show today's record if it exists (even with empty narrative — template handles that).
+    # Only fall back to a previous date if there is no record at all for today.
     narrative = Narrative.query.filter_by(fetch_date=today).first()
-    if narrative and not (narrative.content or "").strip():
-        LOGGER.warning("Today's narrative is blank; falling back to latest non-empty narrative.")
-        narrative = None
     if not narrative:
-        recent = Narrative.query.order_by(Narrative.fetch_date.desc()).all()
-        narrative = next((item for item in recent if (item.content or "").strip()), None)
+        narrative = Narrative.query.order_by(Narrative.fetch_date.desc()).first()
     latest_fetch_run = FetchRun.query.order_by(FetchRun.started_at.desc()).first()
     return render_template(
         "index.html",
         narrative=narrative,
         today=today,
-        fetching=_is_fetching,
+        fetching=_is_fetching or _is_regenerating,
         fetch_error=_last_fetch_error,
         latest_fetch_run=latest_fetch_run,
     )
@@ -314,6 +374,23 @@ def view_narrative(date_str):
         fetch_error=_last_fetch_error,
         latest_fetch_run=FetchRun.query.order_by(FetchRun.started_at.desc()).first(),
     )
+
+
+@app.route("/regenerate/<date_str>", methods=["POST"])
+def trigger_regenerate(date_str):
+    try:
+        fetch_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return redirect(url_for("index"))
+    if _is_fetching or _is_regenerating:
+        flash("A fetch or regeneration is already in progress. Please wait.", "warning")
+    else:
+        thread = threading.Thread(
+            target=lambda: regenerate_narrative_for_date(fetch_date), daemon=True
+        )
+        thread.start()
+        flash("Regenerating narrative — this takes about 60 seconds. Page will refresh automatically.", "info")
+    return redirect(url_for("index"))
 
 
 @app.route("/fetch", methods=["POST"])
