@@ -1,0 +1,11 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Dark rounded square -->
+  <rect width="32" height="32" rx="8" fill="#181715"/>
+  <!-- Bold N in coral -->
+  <path d="M7 23 L7 9 L17 23 L17 9" stroke="#cc785c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Column lines -->
+  <rect x="21" y="10" width="5"   height="1.5" rx="0.75" fill="#cc785c"/>
+  <rect x="21" y="14" width="4"   height="1.5" rx="0.75" fill="#a09d96"/>
+  <rect x="21" y="18" width="4.5" height="1.5" rx="0.75" fill="#a09d96"/>
+  <rect x="21" y="22" width="3.5" height="1.5" rx="0.75" fill="#a09d96"/>
+</svg>

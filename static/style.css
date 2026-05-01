@@ -82,9 +82,13 @@ body {
   letter-spacing: -0.3px;
   color: var(--ink);
   text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .nn-brand:hover { color: var(--ink); }
+.nn-brand img { display: block; flex-shrink: 0; }
 
 .nn-nav-actions {
   display: flex;

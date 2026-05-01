@@ -7,13 +7,17 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 
 <nav class="nn-nav">
   <div class="container" style="max-width:1200px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;width:100%;">
-    <a class="nn-brand" href="{{ url_for('index') }}">✦ NewsNarrative</a>
+    <a class="nn-brand" href="{{ url_for('index') }}">
+      <img src="{{ url_for('static', filename='logo.svg') }}" alt="NewsNarrative logo" width="28" height="28">
+      NewsNarrative
+    </a>
     <div class="nn-nav-actions">
       <a href="{{ url_for('history') }}" class="btn-secondary">History</a>
       <form action="{{ url_for('trigger_fetch') }}" method="post" style="margin:0;">
