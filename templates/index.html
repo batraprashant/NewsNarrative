@@ -68,7 +68,16 @@
       <span class="narrative-card-label">Narrative</span>
     </div>
     <div class="narrative-card-body">
-      {{ narrative.content | markdownify }}
+      {% if narrative.content and narrative.content.strip() %}
+        {{ narrative.content | markdownify }}
+      {% else %}
+        <p style="color:var(--on-dark-soft);font-style:italic;margin:0;">
+          Narrative generation did not complete for this date.
+          {% if narrative.fetch_date == today %}
+            Click <strong style="color:var(--on-dark);">Fetch Now</strong> to retry.
+          {% endif %}
+        </p>
+      {% endif %}
     </div>
   </div>
 

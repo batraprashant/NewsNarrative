@@ -207,16 +207,15 @@ PAST 4 WEEKS – TOP 10 PER WEEK:
     )
 
 
-def fetch_all():
-    """Fetch today + 4 weeks of articles and generate a narrative.
+def fetch_news_only():
+    """Fetch today's headlines + past 4 weeks of articles. No narrative generation.
 
     Returns:
-        (narrative_text, today_articles, past_weeks)
-        where past_weeks = [(label, articles), ...]
+        (today_articles, past_weeks)  where past_weeks = [(label, articles), ...]
     """
     start = time.perf_counter()
     today = datetime.now().date()
-    LOGGER.info("Fetch lifecycle started for %s.", today.isoformat())
+    LOGGER.info("Article fetch started for %s.", today.isoformat())
 
     today_articles = fetch_top_headlines_today()
 
@@ -228,14 +227,13 @@ def fetch_all():
         articles = fetch_top_articles_for_week(from_date, to_date)
         past_weeks.append((label, articles))
 
-    narrative_text = generate_narrative(today_articles, past_weeks)
     elapsed = time.perf_counter() - start
     weekly_count = sum(len(articles) for _, articles in past_weeks)
     LOGGER.info(
-        "Fetch lifecycle complete for %s (today=%d, past_weeks=%d, duration=%.2fs).",
+        "Article fetch complete for %s (today=%d, past_weeks=%d, duration=%.2fs).",
         today.isoformat(),
         len(today_articles),
         weekly_count,
         elapsed,
     )
-    return narrative_text, today_articles, past_weeks
+    return today_articles, past_weeks

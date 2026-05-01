@@ -95,19 +95,16 @@ _is_fetching = False
 _last_fetch_error = None
 
 
-def _save_fetch_result(narrative_text, today_articles, past_weeks, fetch_date):
-    clean_narrative = (narrative_text or "").strip()
-    if not clean_narrative:
-        raise ValueError("Refusing to save empty narrative content.")
-
-    start = time.perf_counter()
+def _save_articles(today_articles, past_weeks, fetch_date):
+    """Transaction 1: persist articles with an empty narrative placeholder.
+    Returns the new Narrative.id."""
     with app.app_context():
         existing = Narrative.query.filter_by(fetch_date=fetch_date).first()
         if existing:
             db.session.delete(existing)
             db.session.flush()
 
-        narrative = Narrative(fetch_date=fetch_date, content=clean_narrative)
+        narrative = Narrative(fetch_date=fetch_date, content="")
         db.session.add(narrative)
         db.session.flush()
 
@@ -136,15 +133,24 @@ def _save_fetch_result(narrative_text, today_articles, past_weeks, fetch_date):
                 ))
 
         db.session.commit()
-    weekly_count = sum(len(articles) for _, articles in past_weeks)
-    elapsed = time.perf_counter() - start
-    LOGGER.info(
-        "Persist phase complete for %s (today=%d, past_weeks=%d, duration=%.2fs).",
-        fetch_date.isoformat(),
-        len(today_articles),
-        weekly_count,
-        elapsed,
-    )
+        LOGGER.info(
+            "Articles saved for %s (today=%d, past_weeks=%d).",
+            fetch_date,
+            len(today_articles),
+            sum(len(arts) for _, arts in past_weeks),
+        )
+        return narrative.id
+
+
+def _save_narrative_content(narrative_id, content):
+    """Transaction 2: update the narrative placeholder with generated text."""
+    with app.app_context():
+        narrative = db.session.get(Narrative, narrative_id)
+        if not narrative:
+            raise ValueError(f"Narrative {narrative_id} not found when saving content.")
+        narrative.content = content
+        db.session.commit()
+        LOGGER.info("Narrative content saved (%d chars) for id=%d.", len(content), narrative_id)
 
 
 def _start_fetch_run(force):
@@ -177,44 +183,63 @@ def fetch_and_save(force=False):
     global _is_fetching, _last_fetch_error
     run_started = time.perf_counter()
     fetch_run_id = None
-    LOGGER.info("Fetch run requested (force=%s).", force)
+
     with _fetch_lock:
         if _is_fetching:
-            LOGGER.info("Fetch run skipped because another fetch is already in progress.")
+            LOGGER.info("Fetch skipped — another fetch is already in progress.")
             return
         _is_fetching = True
         _last_fetch_error = None
+
     LOGGER.info("Fetch run started (force=%s).", force)
 
     try:
-        fetch_run_id = _start_fetch_run(force)
-        from fetcher import fetch_all
+        from fetcher import fetch_news_only, generate_narrative
 
+        fetch_run_id = _start_fetch_run(force)
         today = datetime.now().date()
+
         with app.app_context():
             if not force and Narrative.query.filter_by(fetch_date=today).first():
                 LOGGER.info("Already fetched for %s; skipping scheduled fetch.", today)
                 return
 
-        LOGGER.info("Fetching news for %s...", today)
-        narrative_text, today_articles, past_weeks = fetch_all()
-        _save_fetch_result(narrative_text, today_articles, past_weeks, today)
-        _last_fetch_error = None
-        elapsed = time.perf_counter() - run_started
-        _finish_fetch_run(fetch_run_id, "success", elapsed)
-        LOGGER.info("Fetch run complete for %s (duration=%.2fs).", today, elapsed)
+        # ── Step 1: Fetch articles (NewsAPI) ──────────────────────────────
+        # Committed immediately so articles are visible even if narrative fails.
+        LOGGER.info("Step 1: fetching articles for %s.", today)
+        today_articles, past_weeks = fetch_news_only()
+        narrative_id = _save_articles(today_articles, past_weeks, today)
+
+        # ── Step 2: Generate narrative (OpenAI) ───────────────────────────
+        # Failure here is non-fatal: articles are already saved.
+        LOGGER.info("Step 2: generating narrative for %s.", today)
+        try:
+            narrative_text = generate_narrative(today_articles, past_weeks)
+            _save_narrative_content(narrative_id, narrative_text)
+            _last_fetch_error = None
+            elapsed = time.perf_counter() - run_started
+            _finish_fetch_run(fetch_run_id, "success", elapsed)
+            LOGGER.info("Fetch complete for %s (%.2fs).", today, elapsed)
+        except Exception as narrative_exc:
+            elapsed = time.perf_counter() - run_started
+            _finish_fetch_run(fetch_run_id, "partial", elapsed, str(narrative_exc))
+            _last_fetch_error = (
+                "Articles saved but narrative generation failed — "
+                f"{narrative_exc}. Try clicking Fetch Now again."
+            )
+            LOGGER.exception("Narrative generation failed after %.2fs.", elapsed)
+
     except Exception as exc:
         elapsed = time.perf_counter() - run_started
         _finish_fetch_run(fetch_run_id, "failed", elapsed, str(exc))
         _last_fetch_error = (
-            "Could not generate today's narrative. Please try again in a minute. "
-            "If this keeps happening, check server logs for the exact API error."
+            "News fetch failed. Check your NEWS_API_KEY and server logs."
         )
         LOGGER.exception("Fetch run failed after %.2fs: %s", elapsed, exc)
     finally:
         with _fetch_lock:
             _is_fetching = False
-        LOGGER.info("Fetch run released in-progress lock.")
+        LOGGER.info("Fetch lock released.")
 
 
 # ---------------------------------------------------------------------------

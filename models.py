@@ -9,7 +9,7 @@ class Narrative(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     fetch_date = db.Column(db.Date, unique=True, index=True, nullable=False)
-    content = db.Column(db.Text, nullable=False)
+    content = db.Column(db.Text, nullable=True, default="")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     articles = db.relationship(
