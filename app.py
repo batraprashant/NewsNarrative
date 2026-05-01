@@ -12,6 +12,7 @@ import threading
 import logging
 import time
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import markdown as md
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -95,6 +96,10 @@ _last_fetch_error = None
 
 
 def _save_fetch_result(narrative_text, today_articles, past_weeks, fetch_date):
+    clean_narrative = (narrative_text or "").strip()
+    if not clean_narrative:
+        raise ValueError("Refusing to save empty narrative content.")
+
     start = time.perf_counter()
     with app.app_context():
         existing = Narrative.query.filter_by(fetch_date=fetch_date).first()
@@ -102,7 +107,7 @@ def _save_fetch_result(narrative_text, today_articles, past_weeks, fetch_date):
             db.session.delete(existing)
             db.session.flush()
 
-        narrative = Narrative(fetch_date=fetch_date, content=narrative_text)
+        narrative = Narrative(fetch_date=fetch_date, content=clean_narrative)
         db.session.add(narrative)
         db.session.flush()
 
@@ -183,13 +188,25 @@ def fetch_and_save(force=False):
 
 
 # ---------------------------------------------------------------------------
-# Scheduler: auto-fetch daily at 08:00
+# Scheduler: auto-fetch daily at 06:00 America/Los_Angeles
 # ---------------------------------------------------------------------------
 
 scheduler = BackgroundScheduler(daemon=True)
-scheduler.add_job(fetch_and_save, "cron", hour=8, minute=0)
+scheduler.add_job(
+    fetch_and_save,
+    "cron",
+    hour=6,
+    minute=0,
+    timezone=ZoneInfo("America/Los_Angeles"),
+    id="daily_fetch",
+    replace_existing=True,
+    misfire_grace_time=3600,
+)
 if os.environ.get("TESTING", "").lower() not in {"1", "true", "yes"}:
     scheduler.start()
+    job = scheduler.get_job("daily_fetch")
+    if job:
+        LOGGER.info("Auto-fetch scheduled for %s", job.next_run_time)
 
 
 # ---------------------------------------------------------------------------
@@ -199,10 +216,13 @@ if os.environ.get("TESTING", "").lower() not in {"1", "true", "yes"}:
 @app.route("/")
 def index():
     today = datetime.now().date()
-    narrative = (
-        Narrative.query.filter_by(fetch_date=today).first()
-        or Narrative.query.order_by(Narrative.fetch_date.desc()).first()
-    )
+    narrative = Narrative.query.filter_by(fetch_date=today).first()
+    if narrative and not (narrative.content or "").strip():
+        LOGGER.warning("Today's narrative is blank; falling back to latest non-empty narrative.")
+        narrative = None
+    if not narrative:
+        recent = Narrative.query.order_by(Narrative.fetch_date.desc()).all()
+        narrative = next((item for item in recent if (item.content or "").strip()), None)
     return render_template(
         "index.html",
         narrative=narrative,
@@ -225,8 +245,17 @@ def view_narrative(date_str):
     except ValueError:
         return redirect(url_for("index"))
     narrative = Narrative.query.filter_by(fetch_date=d).first_or_404()
+    if not (narrative.content or "").strip():
+        flash("This saved narrative is empty due to an earlier generation failure.", "warning")
+        return redirect(url_for("index"))
     today = datetime.now().date()
-    return render_template("index.html", narrative=narrative, today=today, fetching=_is_fetching)
+    return render_template(
+        "index.html",
+        narrative=narrative,
+        today=today,
+        fetching=_is_fetching,
+        fetch_error=_last_fetch_error,
+    )
 
 
 @app.route("/fetch", methods=["POST"])

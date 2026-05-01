@@ -19,6 +19,28 @@ def _openai_client():
     return OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
 
+def _extract_message_text(message):
+    """Extract plain text from OpenAI message content across SDK shapes."""
+    content = getattr(message, "content", "")
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for item in content:
+            if isinstance(item, dict):
+                if item.get("type") == "text" and item.get("text"):
+                    parts.append(item["text"])
+                elif item.get("type") == "output_text" and item.get("text"):
+                    parts.append(item["text"])
+            else:
+                item_type = getattr(item, "type", None)
+                item_text = getattr(item, "text", None)
+                if item_type in {"text", "output_text"} and item_text:
+                    parts.append(item_text)
+        return "\n".join(parts)
+    return ""
+
+
 def fetch_top_headlines_today():
     start = time.perf_counter()
     LOGGER.info("Fetch phase: requesting today's top headlines from NewsAPI.")
@@ -155,7 +177,7 @@ PAST 4 WEEKS – TOP 10 PER WEEK:
         )
 
         choice = response.choices[0]
-        content = (choice.message.content or "").strip()
+        content = _extract_message_text(choice.message).strip()
         last_finish_reason = choice.finish_reason
 
         # Strip wrapping ```markdown ... ``` code fences some models add
