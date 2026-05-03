@@ -2,6 +2,11 @@
 
 > Auto-generated from git history. Updated on every push to `main`.
 
+## May 03, 2026
+
+### Bug Fixes
+- Fix daily auto-fetch reliability with OS-level launchd agent (`aef9c8f`)
+
 ## May 01, 2026
 
 ### Features
