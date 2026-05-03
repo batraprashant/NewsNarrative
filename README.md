@@ -9,7 +9,7 @@ A web app that fetches the daily top 10 news and the top 10 stories from each of
 3. Stores everything in a local SQLite database
 4. Generates a Markdown narrative with OpenAI GPT-5.5
 5. Presents the narrative + article cards in a responsive web UI
-6. Auto-fetches daily at 08:00 via a background scheduler
+6. Auto-fetches daily via a macOS launchd agent (OS-level, independent of Flask)
 
 ## Setup
 
@@ -73,8 +73,41 @@ static/         CSS
 - **Weekly Trends** – themes across each of the 4 prior weeks
 - **The Big Picture** – synthesis and context
 
+## Reliable daily auto-fetch (macOS launchd)
+
+The in-process APScheduler only works while Flask is running. For reliable
+daily fetching, install the included launchd agent — it runs at the OS level
+at 07:00 every day regardless of whether Flask is up.
+
+```bash
+# 1. Copy the plist to your LaunchAgents folder
+cp scripts/com.newsnarrative.dailyfetch.plist ~/Library/LaunchAgents/
+
+# 2. Load it (starts immediately and persists across reboots)
+launchctl load ~/Library/LaunchAgents/com.newsnarrative.dailyfetch.plist
+
+# 3. Check it registered
+launchctl list | grep newsnarrative
+```
+
+To run the fetch manually at any time (without Flask):
+```bash
+python3 scripts/daily_fetch.py
+python3 scripts/daily_fetch.py --force   # re-fetch even if today has data
+```
+
+To tail the fetch log:
+```bash
+tail -f /tmp/newsnarrative-fetch.log
+```
+
+To unload the agent:
+```bash
+launchctl unload ~/Library/LaunchAgents/com.newsnarrative.dailyfetch.plist
+```
+
 ## Notes
 
 - The SQLite database (`newsnarrative.db`) is git-ignored.
 - NewsAPI free tier covers articles up to 1 month old, sufficient for the 4-week lookback.
-- The scheduler runs in the background; fetches can also be triggered manually via the **Fetch Now** button.
+- Flask startup recovery: if today has no data when Flask starts, it auto-triggers a fetch immediately.

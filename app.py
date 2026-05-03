@@ -312,16 +312,22 @@ if os.environ.get("TESTING", "").lower() not in {"1", "true", "yes"}:
     if job:
         LOGGER.info("Auto-fetch scheduled for %s", job.next_run_time)
 
-    # Startup recovery: if today has articles but no narrative (e.g. daemon thread
-    # was killed mid-run last time), kick off a background regeneration immediately.
+    # Startup recovery: ensure today always has fresh data when Flask starts.
+    #   - No record at all → full fetch (articles + narrative)
+    #   - Articles saved but narrative empty → regenerate narrative only
     def _startup_recovery():
         from datetime import date as _date
         today = _date.today()
         with app.app_context():
             n = Narrative.query.filter_by(fetch_date=today).first()
-            if n and not (n.content or "").strip() and n.articles:
-                LOGGER.info("Startup recovery: today has articles but no narrative — regenerating.")
-                regenerate_narrative_for_date(today)
+        if n is None:
+            LOGGER.info("Startup recovery: no data for today — running full fetch.")
+            fetch_and_save(force=False)
+        elif not (n.content or "").strip() and n.articles:
+            LOGGER.info("Startup recovery: articles exist but narrative empty — regenerating.")
+            regenerate_narrative_for_date(today)
+        else:
+            LOGGER.info("Startup recovery: today's data is complete, nothing to do.")
 
     threading.Thread(target=_startup_recovery, daemon=True).start()
 
