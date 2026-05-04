@@ -129,26 +129,32 @@ def generate_narrative(today_articles, past_weeks):
         weekly_blocks.append(f"**Week {i}** ({label}):\n{content}")
     weekly_block = "\n\n".join(weekly_blocks)
 
-    prompt = f"""You are an experienced journalist and narrative writer.
+    prompt = f"""You are a sharp, engaging journalist who writes with wit, clarity, and impact.
 Using only the news headlines and descriptions provided below, craft a compelling,
-well-structured narrative (800–1200 words) in **Markdown** format.
+well-structured narrative (900–1300 words) in **Markdown** format.
 
 Your narrative must:
-1. Open with the most significant stories from TODAY
-2. Identify recurring themes and trends across the PAST 4 WEEKS
-3. Draw connections between stories where relevant
-4. Close with a "Big Picture" section contextualising what these stories mean together
+1. Open with a punchy lead that names the single most important story of the day
+2. Cover today's top stories with vivid, direct language — not dry summaries
+3. Identify the most interesting themes and patterns across the PAST 4 WEEKS
+4. Draw surprising or thought-provoking connections between stories
+5. Close with a "The Big Picture" section that delivers a memorable, specific insight
 
-Use these exact Markdown headings:
-## Today's Top Stories
-## Weekly Trends
-### Week 1
-### Week 2
-### Week 3
-### Week 4
-## The Big Picture
-
-Be analytical, not sensational. Cite source names where helpful.
+**Formatting rules — follow these exactly:**
+- Use these exact Markdown headings:
+  ## 🗞 Today's Top Stories
+  ## 📅 Weekly Trends
+  ### Week 1
+  ### Week 2
+  ### Week 3
+  ### Week 4
+  ## 🔭 The Big Picture
+- For every section, pull out **1–2 notable callouts** using this blockquote format:
+  > 💡 **Notable:** [one punchy sentence capturing the most surprising or significant fact]
+- Use **bold** to highlight names, numbers, and key phrases inline
+- Keep paragraphs short (2–4 sentences max) — make every sentence count
+- Cite source names naturally in the text (e.g. "according to Reuters")
+- Write for someone who is smart but busy — no filler, no hedging, no throat-clearing
 
 ---
 
