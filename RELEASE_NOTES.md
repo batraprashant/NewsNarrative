@@ -2,6 +2,11 @@
 
 > Auto-generated from git history. Updated on every push to `main`.
 
+## May 04, 2026
+
+### Improvements
+- Improve narrative prompt and add reliability test coverage (`2a5700e`)
+
 ## May 03, 2026
 
 ### Bug Fixes
